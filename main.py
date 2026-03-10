@@ -1,46 +1,60 @@
 import os
 import asyncio
-from telethon import TelegramClient, events
+from telethon import TelegramClient
 from dotenv import load_dotenv
 
-# 1. Caricamento credenziali
+# Caricamento variabili d ambiente
 load_dotenv()
-API_ID = int(os.getenv('API_ID'))
-API_HASH = os.getenv('API_HASH')
 
-# --- CONFIGURAZIONE UTENTE ---
-HASHTAG = '#talia'           # La parola da cercare
-BASE_PATH = './download'     # Dove vuoi salvare i file
-FOLDER_NAME = 'Media_Talia'  # Nome della cartella finale
-# -----------------------------
+try:
+    API_ID = int(os.getenv('API_ID'))
+    API_HASH = os.getenv('API_HASH')
+except (TypeError, ValueError):
+    print("ERRORE: API_ID o API_HASH non configurati correttamente nel file .env")
+    exit()
+
+# Impostazioni predefinite
+TARGET_CHANNEL = -1001078365372
+BASE_PATH = './download'
 
 async def main():
-    # Inizializza il client (creerà un file .session nella cartella)
+    # Inizializzazione client
     client = TelegramClient('session_personale', API_ID, API_HASH)
     
-    await client.start()
-    print("🚀 Bot avviato con successo!")
+    print("--- CONFIGURAZIONE DOWNLOAD ---")
+    parola_cercata = input("Inserisci la parola o l hashtag da cercare: ").strip()
+    
+    default_folder = parola_cercata.replace('#', '')
+    input_cartella = input(f"Nome cartella di destinazione [Default: {default_folder}]: ").strip()
+    
+    folder_final = input_cartella if input_cartella else default_folder
+    output_path = os.path.join(BASE_PATH, folder_final)
 
-    # Crea il percorso completo
-    output_path = os.path.join(BASE_PATH, FOLDER_NAME)
+    # Autenticazione e avvio
+    await client.start()
+    print("Connessione stabilita con successo.")
+
     if not os.path.exists(output_path):
         os.makedirs(output_path)
-        print(f"📂 Cartella creata: {output_path}")
+        print(f"Cartella creata: {output_path}")
 
-    print(f"🔍 Ricerca di '{HASHTAG}' in corso...")
+    print(f"Ricerca di '{parola_cercata}' nel canale {TARGET_CHANNEL}...")
     
-    # Cicla tra tutti i dialoghi per trovare il messaggio
-    # Nota: puoi anche specificare l'ID del canale per velocizzare
     count = 0
-    async for message in client.iter_messages(None, search=HASHTAG):
+    # Scansione messaggi nel canale
+    async for message in client.iter_messages(TARGET_CHANNEL, search=parola_cercata):
         if message.media:
-            print(f"📥 Scaricando media dal messaggio ID: {message.id}...")
-            # Scarica il file nella cartella specifica
+            print(f"Scaricamento media ID: {message.id}...")
             path = await message.download_media(file=output_path)
-            print(f"✅ Salvato: {path}")
+            print(f"File salvato: {path}")
             count += 1
 
-    print(f"\n✨ Operazione completata! Scaricati {count} elementi.")
+    if count == 0:
+        print(f"Risultato: Nessun file trovato per '{parola_cercata}'.")
+    else:
+        print(f"Download terminato. Totale file scaricati: {count}")
+        print(f"Percorso: {os.path.abspath(output_path)}")
+    
     await client.disconnect()
 
 if __name__ == '__main__':
