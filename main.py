@@ -1,61 +1,127 @@
 import os
 import asyncio
-from telethon import TelegramClient
+import threading
+from datetime import datetime, timedelta
+import customtkinter as ctk
+from telethon import TelegramClient, errors
 from dotenv import load_dotenv
 
-# Caricamento variabili d ambiente
 load_dotenv()
 
-try:
-    API_ID = int(os.getenv('API_ID'))
-    API_HASH = os.getenv('API_HASH')
-except (TypeError, ValueError):
-    print("ERRORE: API_ID o API_HASH non configurati correttamente nel file .env")
-    exit()
+# --- CONFIGURAZIONE ---
+TARGET_CHANNEL = -1001078365372  
+API_ID = os.getenv('API_ID')
+API_HASH = os.getenv('API_HASH')
 
-# Impostazioni predefinite
-TARGET_CHANNEL = -1001078365372
-BASE_PATH = './download'
+class App(ctk.CTk):
+    def __init__(self):
+        super().__init__()
 
-async def main():
-    # Inizializzazione client
-    client = TelegramClient('session_personale', API_ID, API_HASH)
-    
-    print("--- CONFIGURAZIONE DOWNLOAD ---")
-    parola_cercata = input("Inserisci la parola o l hashtag da cercare: ").strip()
-    
-    default_folder = parola_cercata.replace('#', '')
-    input_cartella = input(f"Nome cartella di destinazione [Default: {default_folder}]: ").strip()
-    
-    folder_final = input_cartella if input_cartella else default_folder
-    output_path = os.path.join(BASE_PATH, folder_final)
+        self.title("Telegram Student Downloader Pro")
+        self.geometry("600x650")
+        ctk.set_appearance_mode("dark")
 
-    # Autenticazione e avvio
-    await client.start()
-    print("Connessione stabilita con successo.")
+        # Variabili di stato per il login
+        self.client = None
+        self.phone = None
+        
+        # UI
+        self.label_title = ctk.CTkLabel(self, text="Telegram Downloader", font=("Roboto", 24, "bold"))
+        self.label_title.pack(pady=20)
 
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
-        print(f"Cartella creata: {output_path}")
+        self.entry_parola = ctk.CTkEntry(self, placeholder_text="Hashtag da cercare (es. #talia)", width=400)
+        self.entry_parola.pack(pady=10)
 
-    print(f"Ricerca di '{parola_cercata}' nel canale {TARGET_CHANNEL}...")
-    
-    count = 0
-    # Scansione messaggi nel canale
-    async for message in client.iter_messages(TARGET_CHANNEL, search=parola_cercata):
-        if message.media:
-            print(f"Scaricamento media ID: {message.id}...")
-            path = await message.download_media(file=output_path)
-            print(f"File salvato: {path}")
-            count += 1
+        self.combo_tempo = ctk.CTkComboBox(self, values=["Ultimo mese", "Ultimi 6 mesi", "Ultimo anno", "Tutto"], width=400)
+        self.combo_tempo.set("Ultimo anno")
+        self.combo_tempo.pack(pady=10)
 
-    if count == 0:
-        print(f"Risultato: Nessun file trovato per '{parola_cercata}'.")
-    else:
-        print(f"Download terminato. Totale file scaricati: {count}")
-        print(f"Percorso: {os.path.abspath(output_path)}")
-    
-    await client.disconnect()
+        self.combo_tipo = ctk.CTkComboBox(self, values=["Documenti (PDF/DOC)", "Foto", "Video", "Tutto"], width=400)
+        self.combo_tipo.set("Documenti (PDF/DOC)")
+        self.combo_tipo.pack(pady=10)
 
-if __name__ == '__main__':
-    asyncio.run(main())
+        self.log_box = ctk.CTkTextbox(self, width=500, height=250)
+        self.log_box.pack(pady=15)
+
+        self.btn_start = ctk.CTkButton(self, text="AVVIA DOWNLOAD", command=self.start_thread, fg_color="#2b719e", font=("Roboto", 14, "bold"))
+        self.btn_start.pack(pady=10)
+
+    def log(self, text):
+        self.log_box.insert("end", f"[{datetime.now().strftime('%H:%M:%S')}] {text}\n")
+        self.log_box.see("end")
+
+    def start_thread(self):
+        self.btn_start.configure(state="disabled")
+        threading.Thread(target=lambda: asyncio.run(self.run_logic()), daemon=True).start()
+
+    # Funzione per chiedere dati alla GUI dal thread di Telegram
+    async def get_input_gui(self, prompt):
+        dialog = ctk.CTkInputDialog(text=prompt, title="Accesso Telegram")
+        return dialog.get_input()
+
+    async def run_logic(self):
+        try:
+            parola = self.entry_parola.get().strip()
+            if not parola:
+                self.log("ERRORE: Inserisci un hashtag!")
+                self.btn_start.configure(state="normal")
+                return
+
+            # Configurazione filtri
+            tempo_map = {"Ultimo mese": 30, "Ultimi 6 mesi": 182, "Ultimo anno": 365,"Ultimi due anni": 730 ,"Ultimi 3 anni": 1095, "Ulitmi 4 anni": 1460 , "Tutto": None}
+            giorni = tempo_map.get(self.combo_tempo.get())
+            data_limite = datetime.now() - timedelta(days=giorni) if giorni else None
+            tipo_f = self.combo_tipo.get()
+
+            # Avvio Client con gestione interattiva del login
+            self.client = TelegramClient('session_personale', int(API_ID), API_HASH)
+            
+            await self.client.connect()
+
+            if not await self.client.is_user_authorized():
+                self.log("Richiesta autorizzazione...")
+                phone = await self.get_input_gui("Inserisci il tuo numero (es. +39347...)")
+                if not phone: return
+                
+                await self.client.send_code_request(phone)
+                code = await self.get_input_gui("Inserisci il codice ricevuto su Telegram:")
+                
+                try:
+                    await self.client.sign_in(phone, code)
+                except errors.SessionPasswordNeededError:
+                    pw = await self.get_input_gui("Inserisci la Password 2FA:")
+                    await self.client.sign_in(password=pw)
+
+            self.log("Login effettuato!")
+            
+            folder = os.path.join('./download', parola.replace('#',''))
+            os.makedirs(folder, exist_ok=True)
+
+            count = 0
+            async for message in self.client.iter_messages(TARGET_CHANNEL, search=parola):
+                if data_limite and message.date.replace(tzinfo=None) < data_limite:
+                    continue
+
+                scarica = False
+                if message.media:
+                    if "Documenti" in tipo_f and message.document: scarica = True
+                    elif "Foto" in tipo_f and message.photo: scarica = True
+                    elif "Video" in tipo_f and message.video: scarica = True
+                    elif "Tutto" in tipo_f: scarica = True
+
+                if scarica:
+                    self.log(f"Scaricando messaggio {message.id}...")
+                    await message.download_media(file=folder)
+                    count += 1
+
+            self.log(f"FINE! Scaricati {count} file.")
+            
+        except Exception as e:
+            self.log(f"ERRORE CRITICO: {str(e)}")
+        finally:
+            await self.client.disconnect()
+            self.btn_start.configure(state="normal")
+
+if __name__ == "__main__":
+    app = App()
+    app.mainloop()
