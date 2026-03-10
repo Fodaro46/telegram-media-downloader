@@ -32,7 +32,7 @@ class App(ctk.CTk):
         self.entry_parola = ctk.CTkEntry(self, placeholder_text="Hashtag da cercare (es. #talia)", width=400)
         self.entry_parola.pack(pady=10)
 
-        self.combo_tempo = ctk.CTkComboBox(self, values=["Ultimo mese", "Ultimi 6 mesi", "Ultimo anno", "Tutto"], width=400)
+        self.combo_tempo = ctk.CTkComboBox(self, values=["Ultimo mese", "Ultimi 6 mesi", "Ultimo anno","Ultimi due anni","Ultimi 3 anni", "Ultimi 4 anni", "Tutto"], width=400)
         self.combo_tempo.set("Ultimo anno")
         self.combo_tempo.pack(pady=10)
 
@@ -68,7 +68,7 @@ class App(ctk.CTk):
                 return
 
             # Configurazione filtri
-            tempo_map = {"Ultimo mese": 30, "Ultimi 6 mesi": 182, "Ultimo anno": 365,"Ultimi due anni": 730 ,"Ultimi 3 anni": 1095, "Ulitmi 4 anni": 1460 , "Tutto": None}
+            tempo_map = {"Ultimo mese": 30, "Ultimi 6 mesi": 182, "Ultimo anno": 365,"Ultimi due anni": 730 ,"Ultimi 3 anni": 1095, "Ultimi 4 anni": 1460 , "Tutto": None}
             giorni = tempo_map.get(self.combo_tempo.get())
             data_limite = datetime.now() - timedelta(days=giorni) if giorni else None
             tipo_f = self.combo_tipo.get()
