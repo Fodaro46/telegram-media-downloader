@@ -1,0 +1,22 @@
+# Credenziali e sessioni (MAI su git!)
+.env
+*.session
+*.session-journal
+
+# Output e build
+download/
+build/
+dist/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

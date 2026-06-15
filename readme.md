@@ -11,9 +11,8 @@ Un potente tool grafico in Python per automatizzare il recupero di dispense, PDF
 
 * **🖥️ Interfaccia Grafica (GUI):** Design moderno in Dark Mode (CustomTkinter) — addio terminale nero!
 * **🔍 Ricerca Intelligente:** Scarica file basandosi su hashtag specifici (es. `#sistemi_operativi`).
-* **📅 Filtro Temporale:** Scegli quanto andare a ritroso (1 mese, 6 mesi, 1 anno o tutto).
+* **📅 Filtro Temporale:** Preset rapidi (da 1 mese fino a 4 anni o tutto lo storico) **oppure** un intervallo preciso `Da / A` in formato `GG/MM/AAAA`. Se compili le date manuali, hanno la priorità sul preset.
 * **📁 Filtro Estensioni:** Scarica solo quello che ti serve (solo PDF/DOCX, solo Foto o solo Video).
-* **📦 Gestione Album:** Riconosce i gruppi di foto/file e li scarica tutti insieme senza saltare nulla.
 * **🔐 Login Sicuro:** Gestione del codice di verifica e della Password 2FA direttamente dall'app.
 
 ---
