@@ -14,7 +14,7 @@ load_dotenv()
 
 CONFIG_PATH = "config.json"
 
-# Preset rapidi -> giorni a ritroso (None = tutto lo storico)
+# Quick presets -> days to go back (None = entire history)
 TEMPO_MAP = {
     "Ultimo mese": 30,
     "Ultimi 6 mesi": 182,
@@ -25,7 +25,7 @@ TEMPO_MAP = {
     "Tutto": None,
 }
 
-# Categorie selezionabili (etichetta -> attiva di default)
+# Selectable categories (label -> enabled by default)
 CATEGORIE = {
     "Documenti": True,
     "Foto": False,
@@ -49,7 +49,7 @@ class App(ctk.CTk):
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
-        # Stato
+        # State
         self.client = None
         self.entity = None
         self.stop_event = threading.Event()
@@ -65,7 +65,7 @@ class App(ctk.CTk):
             header, text="📥  Telegram Downloader", font=("Segoe UI", 26, "bold")
         ).pack(pady=16)
 
-        # ---------- SCHEDE ----------
+        # ---------- TABS ----------
         self.tabs = ctk.CTkTabview(self, fg_color="transparent")
         self.tabs.pack(fill="both", expand=True, padx=20, pady=(4, 10))
         tab_cfg = self.tabs.add("⚙️ Configurazione")
@@ -74,13 +74,13 @@ class App(ctk.CTk):
         self._build_tab_config(tab_cfg, cfg)
         self._build_tab_download(tab_dl)
 
-        # Se manca la configurazione, parto dalla scheda Configurazione
+        # If the configuration is incomplete, start on the Configuration tab
         if not (cfg.get("api_id") and cfg.get("api_hash") and cfg.get("channel")):
             self.tabs.set("⚙️ Configurazione")
         else:
             self.tabs.set("⬇️ Download")
 
-    # ================= SCHEDA CONFIGURAZIONE =================
+    # ================= CONFIGURATION TAB =================
     def _build_tab_config(self, tab, cfg):
         banner = ctk.CTkFrame(tab, fg_color="#243447", corner_radius=10)
         banner.pack(fill="x", pady=(6, 14))
@@ -118,7 +118,7 @@ class App(ctk.CTk):
                                            text_color="#7fd18a")
         self.lbl_cfg_status.pack(anchor="w", pady=6)
 
-    # ================= SCHEDA DOWNLOAD =================
+    # ================= DOWNLOAD TAB =================
     def _build_tab_download(self, tab):
         self._sezione(tab, "🔍  Hashtag da cercare")
         self.entry_parola = ctk.CTkEntry(tab, placeholder_text="es. #sisop", height=36)
@@ -181,7 +181,7 @@ class App(ctk.CTk):
                     cfg = json.load(f)
             except Exception:
                 cfg = {}
-        # Fallback al .env per le credenziali (retrocompatibilità)
+        # Fall back to .env for credentials (backward compatibility)
         cfg.setdefault("api_id", os.getenv("API_ID", "") or "")
         cfg.setdefault("api_hash", os.getenv("API_HASH", "") or "")
         cfg.setdefault("channel", "")
@@ -251,13 +251,13 @@ class App(ctk.CTk):
         data_da = datetime.now() - timedelta(days=giorni) if giorni else None
         return data_da, None
 
-    # ---------------- RISOLUZIONE CANALE ----------------
+    # ---------------- CHANNEL RESOLUTION ----------------
     async def _risolvi_canale(self, raw):
         raw = raw.strip()
         if not raw:
             raise ValueError("Inserisci il canale nella scheda Configurazione.")
 
-        # Link d'invito privato: t.me/+hash  oppure  t.me/joinchat/hash
+        # Private invite link: t.me/+hash  or  t.me/joinchat/hash
         m = re.search(r't\.me/(?:joinchat/|\+)([\w-]+)', raw)
         if m:
             invite = m.group(1)
@@ -267,14 +267,14 @@ class App(ctk.CTk):
             updates = await self.client(ImportChatInviteRequest(invite))
             return updates.chats[0]
 
-        # ID numerico
+        # Numeric ID
         if re.fullmatch(r'-?\d+', raw):
             return await self.client.get_entity(int(raw))
 
-        # @username o link pubblico t.me/nomecanale
+        # @username or public link t.me/channelname
         return await self.client.get_entity(raw)
 
-    # ---------------- CLASSIFICAZIONE MEDIA ----------------
+    # ---------------- MEDIA CLASSIFICATION ----------------
     @staticmethod
     def _categoria(message):
         if not message.media:
@@ -320,7 +320,7 @@ class App(ctk.CTk):
             return [message]
         return [m for m in fratelli if m and m.grouped_id == message.grouped_id]
 
-    # ---------------- AVVIO / STOP ----------------
+    # ---------------- START / STOP ----------------
     def start_thread(self):
         api_id = self.entry_api_id.get().strip()
         api_hash = self.entry_api_hash.get().strip()
@@ -354,7 +354,7 @@ class App(ctk.CTk):
         exts = {e.strip().lstrip(".").lower()
                 for e in re.split(r"[,\s]+", self.entry_ext.get()) if e.strip()}
 
-        # Salvo la config così non va re-inserita la prossima volta.
+        # Save the config so it doesn't need to be re-entered next time.
         self.salva_config()
 
         self.stop_event.clear()
@@ -379,7 +379,7 @@ class App(ctk.CTk):
         dialog = ctk.CTkInputDialog(text=prompt, title="Accesso Telegram")
         return dialog.get_input()
 
-    # ---------------- LOGICA PRINCIPALE ----------------
+    # ---------------- MAIN LOGIC ----------------
     async def run_logic(self, api_id, api_hash, channel, parola, data_da, data_a, tipi_sel, exts):
         try:
             self.client = TelegramClient('session_personale', api_id, api_hash)
@@ -400,7 +400,7 @@ class App(ctk.CTk):
 
             self.log("Login effettuato!")
 
-            # Risoluzione del canale
+            # Resolve the channel
             try:
                 self.entity = await self._risolvi_canale(channel)
                 nome = getattr(self.entity, "title", None) or getattr(self.entity, "username", channel)
@@ -414,7 +414,7 @@ class App(ctk.CTk):
             os.makedirs(folder, exist_ok=True)
             self.last_folder = folder
 
-            # ---- Fase 1: raccolta candidati (con espansione album) ----
+            # ---- Phase 1: collect candidates (with album expansion) ----
             self.log("Ricerca messaggi in corso...")
             self._set_status("Ricerca in corso...")
             candidati = {}
@@ -430,6 +430,7 @@ class App(ctk.CTk):
                     continue
 
                 if message.grouped_id and message.grouped_id not in gruppi_visti:
+                    # Album: fetch every item, including those without the hashtag.
                     gruppi_visti.add(message.grouped_id)
                     for fratello in await self._album_fratelli(message):
                         if self._da_scaricare(fratello, tipi_sel, exts):
@@ -441,7 +442,7 @@ class App(ctk.CTk):
             totale = len(messaggi)
             self.log(f"Trovati {totale} file corrispondenti.")
 
-            # ---- Fase 2: download ----
+            # ---- Phase 2: download ----
             count = saltati = 0
             for i, message in enumerate(messaggi, 1):
                 if self.stop_event.is_set():

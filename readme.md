@@ -1,61 +1,72 @@
 # 🎓 Telegram Student Downloader (GUI Version)
 
-Un potente tool grafico in Python per automatizzare il recupero di dispense, PDF e materiali di studio da canali Telegram privati. Progettato per gli studenti che hanno bisogno di organizzare il materiale didattico filtrando per hashtag, data e tipologia di file.
+A powerful Python GUI tool to automate the retrieval of lecture notes, PDFs and study materials from private Telegram channels. Built for students who need to organize course material by filtering on hashtag, date and file type.
+
+> The graphical interface is in Italian, since the tool targets Italian university students.
 
 ![GitHub last commit](https://img.shields.io/github/last-commit/Fodaro46/telegram-media-downloader)
 ![Python Version](https://img.shields.io/badge/python-3.9%2B-blue)
 
 ---
 
-## ✨ Caratteristiche Principali
+## ✨ Key Features
 
-* **🖥️ Interfaccia Grafica (GUI):** Design moderno in Dark Mode (CustomTkinter) con sezioni, barra di avanzamento e log in tempo reale.
-* **🔍 Ricerca Intelligente:** Scarica file basandosi su hashtag specifici (es. `#sistemi_operativi`).
-* **📦 Album completi:** Se l'hashtag è presente solo su una foto/documento di un gruppo, recupera e scarica **tutti** gli allegati dell'album, anche quelli senza hashtag.
-* **📅 Filtro Temporale:** Preset rapidi (da 1 mese fino a 4 anni o tutto lo storico) **oppure** un intervallo preciso `Da / A` in formato `GG/MM/AAAA`. Se compili le date manuali, hanno la priorità sul preset.
-* **📁 Tipi file multipli:** Selezione multipla con checkbox — Documenti, Foto, Video, Audio, Vocali, Archivi (zip/rar/7z…), GIF.
-* **🔎 Filtro per estensione:** Campo opzionale (es. `pdf, docx, zip`) per scaricare solo certi formati, combinabile con i tipi.
-* **♻️ Skip duplicati:** I file già scaricati vengono saltati automaticamente (niente download doppi).
-* **⛔ Stop & progresso:** Pulsante per interrompere in sicurezza, barra di avanzamento e pulsante "Apri cartella".
-* **🔐 Login Sicuro:** Gestione del codice di verifica e della Password 2FA direttamente dall'app.
+* **🖥️ Graphical Interface (GUI):** Modern dark-mode design (CustomTkinter) with sections, progress bar and a real-time log.
+* **⚙️ In-app configuration:** Enter your API ID, API Hash and target channel directly from the GUI — no code editing required.
+* **🔍 Smart Search:** Download files based on specific hashtags (e.g. `#operating_systems`).
+* **📦 Full albums:** If the hashtag is only on one photo/document of a grouped message, the tool fetches and downloads **all** attachments of the album, even those without the hashtag.
+* **📅 Time Filter:** Quick presets (from 1 month up to 4 years, or the whole history) **or** a precise `From / To` range in `DD/MM/YYYY` format. Manual dates take priority over the preset.
+* **📁 Multiple file types:** Multi-select checkboxes — Documents, Photos, Videos, Audio, Voice messages, Archives (zip/rar/7z…), GIFs.
+* **🔎 Extension filter:** Optional field (e.g. `pdf, docx, zip`) to download only specific formats, combinable with the type selection.
+* **♻️ Duplicate skipping:** Already-downloaded files are skipped automatically (no double downloads).
+* **⛔ Stop & progress:** Button to safely interrupt, progress bar and an "Open folder" button.
+* **🔐 Secure Login:** Verification code and 2FA password handled directly in the app.
 
 ---
 
-## 🛠️ Requisiti per gli Sviluppatori
+## 🛠️ Requirements (for Developers)
 
-Se vuoi far girare il codice sorgente (`main.py`), avrai bisogno di:
+To run the source code (`main.py`) you need:
 
 1.  **Python 3.9+**
-2.  **API Keys:** Ottieni le tue `API_ID` e `API_HASH` su [my.telegram.org](https://my.telegram.org).
-3.  **Librerie:**
+2.  **API Keys:** Get your `API_ID` and `API_HASH` at [my.telegram.org](https://my.telegram.org).
+3.  **Dependencies:**
     ```bash
-    pip install telethon customtkinter python-dotenv
+    pip install -r requirements.txt
     ```
 
 ---
 
-## 🚀 Come usarlo (Guida per gli Studenti)
+## 🚀 How to use it (Student Guide)
 
-Se hai scaricato l'eseguibile `.exe`:
+If you downloaded the `.exe` executable:
 
-1.  Avvia `main.exe`.
-2.  Nella scheda **⚙️ Configurazione** inserisci:
-    * **API ID** e **API Hash** (li ottieni su [my.telegram.org](https://my.telegram.org) → *API development tools*);
-    * **Canale**: incolla il link d'invito (`https://t.me/+...`), lo `@username` oppure l'ID numerico (`-100...`). Se è un link d'invito, il bot entra nel canale da solo.
-    * Premi **💾 Salva configurazione** (i dati restano solo sul tuo PC, in `config.json`).
-3.  Passa alla scheda **⬇️ Download**, inserisci l'hashtag, scegli i filtri e clicca su **AVVIA DOWNLOAD**.
-4.  Al primo avvio inserisci il tuo numero di telefono e il codice che riceverai su Telegram nelle finestre di dialogo che appariranno (e la password 2FA se attiva).
+1.  Launch `main.exe`.
+2.  In the **⚙️ Configuration** tab, fill in:
+    * **API ID** and **API Hash** (get them at [my.telegram.org](https://my.telegram.org) → *API development tools*);
+    * **Channel**: paste the invite link (`https://t.me/+...`), the `@username` or the numeric ID (`-100...`). If it is an invite link, the bot joins the channel by itself.
+    * Press **💾 Save configuration** (your data stays only on your PC, in `config.json`).
+3.  Switch to the **⬇️ Download** tab, enter the hashtag, choose the filters and click **START DOWNLOAD**.
+4.  On first launch, enter your phone number and the code you receive on Telegram in the dialog windows that appear (and the 2FA password if enabled).
 
-> Tutta la configurazione si fa dall'interfaccia: non serve più modificare il codice o creare file a mano.
+> All configuration is done from the interface: you no longer need to edit the code or create files by hand.
 
 ---
 
-## 📂 Struttura del Progetto
+## 📂 Project Structure
 
 ```text
 .
-├── main.py              # Codice sorgente con interfaccia CustomTkinter
-├── .env                 # File locale (NON caricare su GitHub!)
-├── .gitignore           # Esclude file sensibili e cartelle build
-├── requirements.txt     # Dipendenze del progetto
-└── download/            # Cartella generata automaticamente per i tuoi file
+├── main.py              # Source code with the CustomTkinter interface
+├── config.json          # Local config: API keys + channel (NOT committed to GitHub!)
+├── .env                 # Optional local file for API keys (NOT committed!)
+├── .gitignore           # Excludes sensitive files and build folders
+├── requirements.txt     # Project dependencies
+└── download/            # Auto-generated folder for your files
+```
+
+---
+
+## 🔐 Security note
+
+`config.json`, `.env` and the Telegram `*.session` files contain credentials and session data: they are listed in `.gitignore` and must **never** be pushed to GitHub.
