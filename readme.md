@@ -9,10 +9,14 @@ Un potente tool grafico in Python per automatizzare il recupero di dispense, PDF
 
 ## ✨ Caratteristiche Principali
 
-* **🖥️ Interfaccia Grafica (GUI):** Design moderno in Dark Mode (CustomTkinter) — addio terminale nero!
+* **🖥️ Interfaccia Grafica (GUI):** Design moderno in Dark Mode (CustomTkinter) con sezioni, barra di avanzamento e log in tempo reale.
 * **🔍 Ricerca Intelligente:** Scarica file basandosi su hashtag specifici (es. `#sistemi_operativi`).
+* **📦 Album completi:** Se l'hashtag è presente solo su una foto/documento di un gruppo, recupera e scarica **tutti** gli allegati dell'album, anche quelli senza hashtag.
 * **📅 Filtro Temporale:** Preset rapidi (da 1 mese fino a 4 anni o tutto lo storico) **oppure** un intervallo preciso `Da / A` in formato `GG/MM/AAAA`. Se compili le date manuali, hanno la priorità sul preset.
-* **📁 Filtro Estensioni:** Scarica solo quello che ti serve (solo PDF/DOCX, solo Foto o solo Video).
+* **📁 Tipi file multipli:** Selezione multipla con checkbox — Documenti, Foto, Video, Audio, Vocali, Archivi (zip/rar/7z…), GIF.
+* **🔎 Filtro per estensione:** Campo opzionale (es. `pdf, docx, zip`) per scaricare solo certi formati, combinabile con i tipi.
+* **♻️ Skip duplicati:** I file già scaricati vengono saltati automaticamente (niente download doppi).
+* **⛔ Stop & progresso:** Pulsante per interrompere in sicurezza, barra di avanzamento e pulsante "Apri cartella".
 * **🔐 Login Sicuro:** Gestione del codice di verifica e della Password 2FA direttamente dall'app.
 
 ---
