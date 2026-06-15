@@ -1,18 +1,18 @@
 import os
 import re
+import json
 import asyncio
 import threading
 from datetime import datetime, timedelta
 import customtkinter as ctk
 from telethon import TelegramClient, errors
+from telethon.tl.functions.messages import CheckChatInviteRequest, ImportChatInviteRequest
+from telethon.tl.types import ChatInviteAlready
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# --- CONFIGURAZIONE ---
-TARGET_CHANNEL = -1001078365372
-API_ID = os.getenv('API_ID')
-API_HASH = os.getenv('API_HASH')
+CONFIG_PATH = "config.json"
 
 # Preset rapidi -> giorni a ritroso (None = tutto lo storico)
 TEMPO_MAP = {
@@ -45,52 +45,101 @@ class App(ctk.CTk):
         super().__init__()
 
         self.title("Telegram Student Downloader Pro")
-        self.geometry("680x880")
+        self.geometry("700x900")
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
         # Stato
         self.client = None
+        self.entity = None
         self.stop_event = threading.Event()
         self.last_folder = None
         self.tipo_checks = {}
+
+        cfg = self._load_config()
 
         # ---------- HEADER ----------
         header = ctk.CTkFrame(self, fg_color="#1f2d3d", corner_radius=0)
         header.pack(fill="x")
         ctk.CTkLabel(
             header, text="📥  Telegram Downloader", font=("Segoe UI", 26, "bold")
-        ).pack(pady=18)
+        ).pack(pady=16)
 
-        # contenitore principale
-        body = ctk.CTkFrame(self, fg_color="transparent")
-        body.pack(fill="both", expand=True, padx=24, pady=12)
+        # ---------- SCHEDE ----------
+        self.tabs = ctk.CTkTabview(self, fg_color="transparent")
+        self.tabs.pack(fill="both", expand=True, padx=20, pady=(4, 10))
+        tab_cfg = self.tabs.add("⚙️ Configurazione")
+        tab_dl = self.tabs.add("⬇️ Download")
 
-        # ---------- HASHTAG ----------
-        self._sezione(body, "🔍  Hashtag da cercare")
-        self.entry_parola = ctk.CTkEntry(body, placeholder_text="es. #sisop", height=36)
-        self.entry_parola.pack(fill="x", pady=(0, 14))
+        self._build_tab_config(tab_cfg, cfg)
+        self._build_tab_download(tab_dl)
 
-        # ---------- PERIODO ----------
-        self._sezione(body, "📅  Periodo")
-        self.combo_tempo = ctk.CTkComboBox(body, values=list(TEMPO_MAP.keys()), height=36)
+        # Se manca la configurazione, parto dalla scheda Configurazione
+        if not (cfg.get("api_id") and cfg.get("api_hash") and cfg.get("channel")):
+            self.tabs.set("⚙️ Configurazione")
+        else:
+            self.tabs.set("⬇️ Download")
+
+    # ================= SCHEDA CONFIGURAZIONE =================
+    def _build_tab_config(self, tab, cfg):
+        banner = ctk.CTkFrame(tab, fg_color="#243447", corner_radius=10)
+        banner.pack(fill="x", pady=(6, 14))
+        istruzioni = (
+            "ℹ️  Come configurare:\n"
+            "1.  Vai su my.telegram.org → 'API development tools' e copia API ID e API Hash.\n"
+            "2.  Incolla qui sotto le credenziali (restano solo sul tuo PC, in config.json).\n"
+            "3.  Nel campo Canale incolla il link d'invito (t.me/+...), lo @username\n"
+            "     oppure l'ID numerico del canale. Se è un link d'invito, il bot ci entra da solo.\n"
+            "4.  Premi 'Salva configurazione', poi passa alla scheda Download."
+        )
+        ctk.CTkLabel(banner, text=istruzioni, justify="left", font=("Segoe UI", 12),
+                     text_color="#cdd6df").pack(anchor="w", padx=14, pady=12)
+
+        self._sezione(tab, "🔑  API ID")
+        self.entry_api_id = ctk.CTkEntry(tab, placeholder_text="es. 1234567", height=36)
+        self.entry_api_id.pack(fill="x", pady=(0, 12))
+        self.entry_api_id.insert(0, cfg.get("api_id", ""))
+
+        self._sezione(tab, "🔑  API Hash")
+        self.entry_api_hash = ctk.CTkEntry(tab, placeholder_text="es. a1b2c3d4e5f6...", height=36)
+        self.entry_api_hash.pack(fill="x", pady=(0, 12))
+        self.entry_api_hash.insert(0, cfg.get("api_hash", ""))
+
+        self._sezione(tab, "📡  Canale (link invito / @username / ID)")
+        self.entry_channel = ctk.CTkEntry(
+            tab, placeholder_text="es. https://t.me/+AbCdEf  oppure  @nomecanale  oppure  -100123...",
+            height=36)
+        self.entry_channel.pack(fill="x", pady=(0, 16))
+        self.entry_channel.insert(0, cfg.get("channel", ""))
+
+        ctk.CTkButton(tab, text="💾  Salva configurazione", height=42,
+                      font=("Segoe UI", 14, "bold"), command=self.salva_config).pack(fill="x")
+        self.lbl_cfg_status = ctk.CTkLabel(tab, text="", font=("Segoe UI", 11),
+                                           text_color="#7fd18a")
+        self.lbl_cfg_status.pack(anchor="w", pady=6)
+
+    # ================= SCHEDA DOWNLOAD =================
+    def _build_tab_download(self, tab):
+        self._sezione(tab, "🔍  Hashtag da cercare")
+        self.entry_parola = ctk.CTkEntry(tab, placeholder_text="es. #sisop", height=36)
+        self.entry_parola.pack(fill="x", pady=(0, 12))
+
+        self._sezione(tab, "📅  Periodo")
+        self.combo_tempo = ctk.CTkComboBox(tab, values=list(TEMPO_MAP.keys()), height=36)
         self.combo_tempo.set("Ultimo anno")
         self.combo_tempo.pack(fill="x")
-        ctk.CTkLabel(
-            body, text="Oppure intervallo preciso (opzionale, GG/MM/AAAA):",
-            font=("Segoe UI", 11), text_color="#9aa6b2",
-        ).pack(anchor="w", pady=(8, 2))
-        frame_range = ctk.CTkFrame(body, fg_color="transparent")
-        frame_range.pack(fill="x", pady=(0, 14))
+        ctk.CTkLabel(tab, text="Oppure intervallo preciso (opzionale, GG/MM/AAAA):",
+                     font=("Segoe UI", 11), text_color="#9aa6b2").pack(anchor="w", pady=(8, 2))
+        frame_range = ctk.CTkFrame(tab, fg_color="transparent")
+        frame_range.pack(fill="x", pady=(0, 12))
         self.entry_da = ctk.CTkEntry(frame_range, placeholder_text="Da  (GG/MM/AAAA)", height=34)
         self.entry_da.pack(side="left", expand=True, fill="x", padx=(0, 6))
         self.entry_a = ctk.CTkEntry(frame_range, placeholder_text="A  (GG/MM/AAAA)", height=34)
         self.entry_a.pack(side="left", expand=True, fill="x", padx=(6, 0))
 
-        # ---------- TIPI FILE ----------
-        self._sezione(body, "📁  Tipi di file (selezione multipla)")
-        grid = ctk.CTkFrame(body, fg_color="transparent")
-        grid.pack(fill="x", pady=(0, 6))
+        self._sezione(tab, "📁  Tipi di file (selezione multipla)")
+        grid = ctk.CTkFrame(tab, fg_color="transparent")
+        grid.pack(fill="x", pady=(0, 4))
         for i, (nome, attivo) in enumerate(CATEGORIE.items()):
             cb = ctk.CTkCheckBox(grid, text=nome)
             if attivo:
@@ -98,38 +147,60 @@ class App(ctk.CTk):
             cb.grid(row=i // 4, column=i % 4, sticky="w", padx=8, pady=4)
             self.tipo_checks[nome] = cb
 
-        # ---------- ESTENSIONI ----------
-        ctk.CTkLabel(
-            body, text="Filtra per estensione (opzionale, es. pdf, docx, zip):",
-            font=("Segoe UI", 11), text_color="#9aa6b2",
-        ).pack(anchor="w", pady=(8, 2))
-        self.entry_ext = ctk.CTkEntry(body, placeholder_text="lascia vuoto per tutte", height=34)
-        self.entry_ext.pack(fill="x", pady=(0, 14))
+        ctk.CTkLabel(tab, text="Filtra per estensione (opzionale, es. pdf, docx, zip):",
+                     font=("Segoe UI", 11), text_color="#9aa6b2").pack(anchor="w", pady=(8, 2))
+        self.entry_ext = ctk.CTkEntry(tab, placeholder_text="lascia vuoto per tutte", height=34)
+        self.entry_ext.pack(fill="x", pady=(0, 12))
 
-        # ---------- PROGRESSO ----------
-        self.progress = ctk.CTkProgressBar(body, height=14)
+        self.progress = ctk.CTkProgressBar(tab, height=14)
         self.progress.set(0)
         self.progress.pack(fill="x", pady=(2, 4))
-        self.status = ctk.CTkLabel(body, text="Pronto.", font=("Segoe UI", 11), text_color="#9aa6b2")
+        self.status = ctk.CTkLabel(tab, text="Pronto.", font=("Segoe UI", 11), text_color="#9aa6b2")
         self.status.pack(anchor="w")
 
-        # ---------- LOG ----------
-        self.log_box = ctk.CTkTextbox(body, height=200, font=("Consolas", 11))
-        self.log_box.pack(fill="both", expand=True, pady=10)
+        self.log_box = ctk.CTkTextbox(tab, height=170, font=("Consolas", 11))
+        self.log_box.pack(fill="both", expand=True, pady=8)
 
-        # ---------- PULSANTI ----------
-        btns = ctk.CTkFrame(body, fg_color="transparent")
-        btns.pack(fill="x", pady=(0, 6))
-        self.btn_start = ctk.CTkButton(
-            btns, text="▶  AVVIA DOWNLOAD", command=self.start_thread,
-            height=42, font=("Segoe UI", 14, "bold"),
-        )
+        btns = ctk.CTkFrame(tab, fg_color="transparent")
+        btns.pack(fill="x", pady=(0, 4))
+        self.btn_start = ctk.CTkButton(btns, text="▶  AVVIA DOWNLOAD", command=self.start_thread,
+                                       height=42, font=("Segoe UI", 14, "bold"))
         self.btn_start.pack(side="left", expand=True, fill="x", padx=(0, 6))
-        self.btn_folder = ctk.CTkButton(
-            btns, text="📂 Apri cartella", command=self.apri_cartella,
-            height=42, width=150, fg_color="#3a4a5a", hover_color="#4a5d6e",
-        )
+        self.btn_folder = ctk.CTkButton(btns, text="📂 Apri cartella", command=self.apri_cartella,
+                                        height=42, width=150, fg_color="#3a4a5a",
+                                        hover_color="#4a5d6e")
         self.btn_folder.pack(side="left")
+
+    # ---------------- CONFIG ----------------
+    @staticmethod
+    def _load_config():
+        cfg = {}
+        if os.path.exists(CONFIG_PATH):
+            try:
+                with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+            except Exception:
+                cfg = {}
+        # Fallback al .env per le credenziali (retrocompatibilità)
+        cfg.setdefault("api_id", os.getenv("API_ID", "") or "")
+        cfg.setdefault("api_hash", os.getenv("API_HASH", "") or "")
+        cfg.setdefault("channel", "")
+        return cfg
+
+    def salva_config(self):
+        data = {
+            "api_id": self.entry_api_id.get().strip(),
+            "api_hash": self.entry_api_hash.get().strip(),
+            "channel": self.entry_channel.get().strip(),
+        }
+        try:
+            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+            self.lbl_cfg_status.configure(text="✅ Configurazione salvata in config.json",
+                                          text_color="#7fd18a")
+        except Exception as e:
+            self.lbl_cfg_status.configure(text=f"❌ Errore nel salvataggio: {e}",
+                                          text_color="#e08585")
 
     # ---------------- HELPER UI ----------------
     def _sezione(self, parent, testo):
@@ -180,6 +251,29 @@ class App(ctk.CTk):
         data_da = datetime.now() - timedelta(days=giorni) if giorni else None
         return data_da, None
 
+    # ---------------- RISOLUZIONE CANALE ----------------
+    async def _risolvi_canale(self, raw):
+        raw = raw.strip()
+        if not raw:
+            raise ValueError("Inserisci il canale nella scheda Configurazione.")
+
+        # Link d'invito privato: t.me/+hash  oppure  t.me/joinchat/hash
+        m = re.search(r't\.me/(?:joinchat/|\+)([\w-]+)', raw)
+        if m:
+            invite = m.group(1)
+            res = await self.client(CheckChatInviteRequest(invite))
+            if isinstance(res, ChatInviteAlready):
+                return res.chat
+            updates = await self.client(ImportChatInviteRequest(invite))
+            return updates.chats[0]
+
+        # ID numerico
+        if re.fullmatch(r'-?\d+', raw):
+            return await self.client.get_entity(int(raw))
+
+        # @username o link pubblico t.me/nomecanale
+        return await self.client.get_entity(raw)
+
     # ---------------- CLASSIFICAZIONE MEDIA ----------------
     @staticmethod
     def _categoria(message):
@@ -221,13 +315,25 @@ class App(ctk.CTk):
     async def _album_fratelli(self, message):
         ids = list(range(message.id - 9, message.id + 10))
         try:
-            fratelli = await self.client.get_messages(TARGET_CHANNEL, ids=ids)
+            fratelli = await self.client.get_messages(self.entity, ids=ids)
         except Exception:
             return [message]
         return [m for m in fratelli if m and m.grouped_id == message.grouped_id]
 
     # ---------------- AVVIO / STOP ----------------
     def start_thread(self):
+        api_id = self.entry_api_id.get().strip()
+        api_hash = self.entry_api_hash.get().strip()
+        channel = self.entry_channel.get().strip()
+        if not (api_id and api_hash and channel):
+            self.log("ERRORE: completa API ID, API Hash e Canale nella scheda Configurazione.")
+            self.tabs.set("⚙️ Configurazione")
+            return
+        if not api_id.isdigit():
+            self.log("ERRORE: l'API ID deve essere numerico.")
+            self.tabs.set("⚙️ Configurazione")
+            return
+
         parola = self.entry_parola.get().strip()
         if not parola:
             self.log("ERRORE: Inserisci un hashtag!")
@@ -240,24 +346,24 @@ class App(ctk.CTk):
 
         try:
             data_da, data_a = self._calcola_intervallo(
-                self.entry_da.get(), self.entry_a.get(), self.combo_tempo.get()
-            )
+                self.entry_da.get(), self.entry_a.get(), self.combo_tempo.get())
         except ValueError as e:
             self.log(f"ERRORE data: {e} (usa il formato GG/MM/AAAA)")
             return
 
-        exts = {
-            e.strip().lstrip(".").lower()
-            for e in re.split(r"[,\s]+", self.entry_ext.get())
-            if e.strip()
-        }
+        exts = {e.strip().lstrip(".").lower()
+                for e in re.split(r"[,\s]+", self.entry_ext.get()) if e.strip()}
+
+        # Salvo la config così non va re-inserita la prossima volta.
+        self.salva_config()
 
         self.stop_event.clear()
         self.progress.set(0)
         self.btn_start.configure(text="⛔  FERMA", fg_color="#9e2b2b",
                                  hover_color="#7e2222", command=self.request_stop)
         threading.Thread(
-            target=lambda: asyncio.run(self.run_logic(parola, data_da, data_a, tipi_sel, exts)),
+            target=lambda: asyncio.run(
+                self.run_logic(int(api_id), api_hash, channel, parola, data_da, data_a, tipi_sel, exts)),
             daemon=True,
         ).start()
 
@@ -274,13 +380,9 @@ class App(ctk.CTk):
         return dialog.get_input()
 
     # ---------------- LOGICA PRINCIPALE ----------------
-    async def run_logic(self, parola, data_da, data_a, tipi_sel, exts):
+    async def run_logic(self, api_id, api_hash, channel, parola, data_da, data_a, tipi_sel, exts):
         try:
-            if not API_ID or not API_HASH:
-                self.log("ERRORE: API_ID/API_HASH mancanti. Controlla il file .env")
-                return
-
-            self.client = TelegramClient('session_personale', int(API_ID), API_HASH)
+            self.client = TelegramClient('session_personale', api_id, api_hash)
             await self.client.connect()
 
             if not await self.client.is_user_authorized():
@@ -298,6 +400,16 @@ class App(ctk.CTk):
 
             self.log("Login effettuato!")
 
+            # Risoluzione del canale
+            try:
+                self.entity = await self._risolvi_canale(channel)
+                nome = getattr(self.entity, "title", None) or getattr(self.entity, "username", channel)
+                self.log(f"Canale: {nome}")
+            except Exception as e:
+                self.log(f"ERRORE canale: impossibile risolvere '{channel}' ({e}). "
+                         f"Prova con il link d'invito o lo @username.")
+                return
+
             folder = os.path.join('./download', parola.replace('#', ''))
             os.makedirs(folder, exist_ok=True)
             self.last_folder = folder
@@ -308,7 +420,7 @@ class App(ctk.CTk):
             candidati = {}
             gruppi_visti = set()
 
-            async for message in self.client.iter_messages(TARGET_CHANNEL, search=parola):
+            async for message in self.client.iter_messages(self.entity, search=parola):
                 if self.stop_event.is_set():
                     break
                 msg_date = message.date.replace(tzinfo=None)
@@ -318,7 +430,6 @@ class App(ctk.CTk):
                     continue
 
                 if message.grouped_id and message.grouped_id not in gruppi_visti:
-                    # Album: recupero tutti gli elementi, anche quelli senza hashtag.
                     gruppi_visti.add(message.grouped_id)
                     for fratello in await self._album_fratelli(message):
                         if self._da_scaricare(fratello, tipi_sel, exts):

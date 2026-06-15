@@ -38,15 +38,15 @@ Se vuoi far girare il codice sorgente (`main.py`), avrai bisogno di:
 
 Se hai scaricato l'eseguibile `.exe`:
 
-1.  Crea una cartella sul desktop e inserisci il file `main.exe`.
-2.  Crea un file chiamato `.env` nella stessa cartella e incolla le tue credenziali:
-    ```env
-    API_ID=1234567
-    API_HASH=tuo_codice_hash_alfanumerico
-    ```
-3.  Avvia `main.exe`.
-4.  Inserisci l'hashtag, scegli i filtri e clicca su **AVVIA DOWNLOAD**.
-5.  Se richiesto, inserisci il tuo numero di telefono e il codice che riceverai su Telegram nelle finestre di dialogo che appariranno.
+1.  Avvia `main.exe`.
+2.  Nella scheda **⚙️ Configurazione** inserisci:
+    * **API ID** e **API Hash** (li ottieni su [my.telegram.org](https://my.telegram.org) → *API development tools*);
+    * **Canale**: incolla il link d'invito (`https://t.me/+...`), lo `@username` oppure l'ID numerico (`-100...`). Se è un link d'invito, il bot entra nel canale da solo.
+    * Premi **💾 Salva configurazione** (i dati restano solo sul tuo PC, in `config.json`).
+3.  Passa alla scheda **⬇️ Download**, inserisci l'hashtag, scegli i filtri e clicca su **AVVIA DOWNLOAD**.
+4.  Al primo avvio inserisci il tuo numero di telefono e il codice che riceverai su Telegram nelle finestre di dialogo che appariranno (e la password 2FA se attiva).
+
+> Tutta la configurazione si fa dall'interfaccia: non serve più modificare il codice o creare file a mano.
 
 ---
 

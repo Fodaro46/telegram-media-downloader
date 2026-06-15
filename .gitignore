@@ -1,5 +1,6 @@
 # Credenziali e sessioni (MAI su git!)
 .env
+config.json
 *.session
 *.session-journal
 
